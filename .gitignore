@@ -7,5 +7,4 @@ venv
 /devtools/.next
 /devtools/node_modules
 
-/training/training_data
-/models/extra
+/training

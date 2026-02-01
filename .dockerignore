@@ -1,0 +1,16 @@
+# Node / Frontend
+/devtools/node_modules
+/devtools/.next
+/devtools/README.md
+
+# Python / Backend
+/src/__pycache__
+.venv
+.__pycache__
+
+# General
+.git
+.gitignore
+Dockerfile*
+docker-compose.override.yml
+/training
