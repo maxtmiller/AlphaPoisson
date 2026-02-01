@@ -56,7 +56,7 @@ You do **not** need Python, Node.js, pip, or npm installed locally.
 
 Play against the AlphaPoisson engines in your browser:
 
-👉 https://alphapoisson-frontend.onrender.com/
+👉 https://alpha-poisson.vercel.app/
 
 (Spin up the backend before playing, by accessing this URL): https://alphapoisson.onrender.com/
 
