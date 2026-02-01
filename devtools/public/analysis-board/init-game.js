@@ -17,9 +17,6 @@ window.initAnalysisBoard = async function (gameData) {
     console.log("Model updated:", modelName);
   };
 
-  
-
-
   game.white.name = gameData.white.name;
   game.black.name = gameData.black.name;
   game.white.elo = gameData.white.elo || "N/A";

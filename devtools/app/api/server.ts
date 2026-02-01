@@ -148,19 +148,20 @@ function waitForServerReady(): Promise<void> {
       attempts += 1;
 
       const req = http.request(
-        {
-          host: "127.0.0.1",
-          port: servePort,
-          path: "/",
-          method: "POST"
-        },
-        (res) => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            console.log("serve.py is ready");
-            resolve();
-          } else if (attempts < maxAttempts) {
-            setTimeout(check, delayMs);
-          } else {
+      {
+        host: "backend",
+        port: servePort,
+        path: "/", 
+        method: "GET"
+      },
+      (res) => {
+        // If the server responds at all (even a 404), it's technically "up"
+        if (res.statusCode && res.statusCode < 500) { 
+          console.log("serve.py is ready");
+          resolve();
+        } else if (attempts < maxAttempts) {
+          setTimeout(check, delayMs);
+        } else {
             reject(new Error("serve.py did not become ready"));
           }
         }

@@ -1,4 +1,4 @@
-import AnalysisBoardWrapper from "./components/AnalysisBoardWrapper";
+import AnalysisBoardWrapper from "./components";
 
 export default async function GamePage() {
   return (

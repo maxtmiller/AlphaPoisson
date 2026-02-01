@@ -12,7 +12,7 @@ from src import main
 app = FastAPI() 
 
 
-@app.post("/")
+@app.get("/")
 async def root():
     return JSONResponse(content={"running": True}) 
 
