@@ -28,51 +28,36 @@ Key ideas behind the project include:
 
 ---
 
-## 📍 Play Locally
+## 📍 Play Locally Using Docker
 
-Ensure you have Python installed (preferably Python 3.12 or later). You also need to have `pip` installed.
+Ensure you have Docker installed and running. Docker Desktop includes Docker Compose.
+
+You do **not** need Python, Node.js, pip, or npm installed locally.
 
 ### Setup Instructions
+
 1. Clone the repository:
    ```bash
    git clone <repository-url>
    cd AlphaPoisson
-2. Set up Python environment:
+2. Build the Docker images:
    ```bash
-     python -m venv .venv
-     source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-     pip install -r requirements.txt
-3. Install Node.js dependencies:
+     docker compose build
+3. Start the application:
    ```bash
-     cd devtools
-     npm install
-4. Configure environment variables:
-
-   Create a .env.local file in the root directory and /devtools with the following:
+     docker compose up
+4. Open the application in your browser:
    ```bash
-     PYTHON_EXECUTABLE=path/to/python/environment
-     SERVE_PORT=5058
-     PORT=3000
-5. Run the dev server:
-
-   From the root directory, run:
-   ```bash
-     python3 serve.py
-   ```
+     http://localhost:3000
    
-   From the devtools directory, run:
-   ```bash
-     npm run dev
-   ```
-     
-7. Open the application in your browser using the terminal local host link. You're all set!
-
 ---
 
 ## 🌐 Play Online
 
 Play against the AlphaPoisson engines in your browser:
 
-👉 *(Will update with live website)*
+👉 https://alphapoisson-frontend.onrender.com/
+
+(Spin up the backend before playing, by accessing this URL): https://alphapoisson.onrender.com/
 
 ---
