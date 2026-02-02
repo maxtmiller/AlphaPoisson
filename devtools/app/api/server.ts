@@ -16,13 +16,6 @@ let lastRestartReason: "manual" | "file-change" | null = null;
 
 const servePort = Number(process.env.SERVE_PORT || "5058");
 
-console.log("[devtools env]", {
-  PYTHON_EXECUTABLE: process.env.PYTHON_EXECUTABLE,
-  PYTHON: process.env.PYTHON,
-  SERVE_PORT: process.env.SERVE_PORT,
-  PORT: process.env.PORT
-});
-
 function getServerCwd() {
   return path.join(process.cwd(), "..");
 }

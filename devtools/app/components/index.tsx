@@ -188,6 +188,8 @@ export default function AnalysisBoardWrapper() {
     };
   }, []);
 
+
+
   const handleReloadClick = useCallback(async () => {
     if (reloading) return;
     setReloading(true);
@@ -436,12 +438,19 @@ export default function AnalysisBoardWrapper() {
                   </div>
 
                   <div className="analysis-overlay active">
-                    <div className="analysis-content">
+                    <div className="analysis-content active">
                       <h2>Analyzing Game</h2>
                       <p>Stockfish is analyzing your game...</p>
                       <div className="analysis-progress">
                         <div className="analysis-progress-bar"></div>
                       </div>
+                      <div className="fun-fact">
+                        Here&apos;s a fun fact: the website is still loading!
+                      </div>
+                    </div>
+                    <div className="model-content">
+                      <h2 id="bot-status-title">Model Analyzing</h2>
+                      <p id="bot-status-message">Retrieving model outputs....</p>
                       <div className="fun-fact">
                         Here&apos;s a fun fact: the website is still loading!
                       </div>

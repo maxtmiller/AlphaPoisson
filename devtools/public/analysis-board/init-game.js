@@ -4,6 +4,23 @@ import { GameLoader } from "./src/components/games/GameLoader.js";
 import { GameGraph } from "./src/components/report/GameGraph.js";
 import { DebugInformation } from "./src/components/debug/DebugInformation.js";
 
+function displayMessage(code) {
+  const eT = document.getElementById("bot-status-title");
+  const eM = document.getElementById("bot-status-message");
+  if (eT && eM) {
+    if (code == "wake") {
+      eT.textContent = "Model Waking";
+      eM.textContent = "Spinning up chess engine...";
+    } else if (code == "fail") {
+      eT.textContent = "Model error"
+      eM.textContent =  "Try reloading the page...";
+    } else if (code == "normal") {
+      eT.textContent = "Model Analyzing"
+      eM.textContent = "Retrieving model outputs...";
+    }
+  }
+}
+
 window.initAnalysisBoard = async function (gameData) {
   const chessUI = new ChessUI();
   const game = GameLoader.loadGameFromPGN(gameData.pgn);
@@ -40,6 +57,10 @@ window.initAnalysisBoard = async function (gameData) {
 
     chessUI.onHumanMove(async () => {
       try {
+        if (chessUI.checkGameOver()) {
+          return;
+        }
+
         console.log("initAnalysisBoard: human move detected");
         const pgn =
           chessUI && typeof chessUI.getGamePGN === "function"
@@ -54,6 +75,11 @@ window.initAnalysisBoard = async function (gameData) {
         const timeleft =
           typeof gameData.timeleft === "number" ? gameData.timeleft : 60000;
 
+        $(".analysis-overlay").addClass("active");
+        $(".analysis-content").removeClass("active");
+        $(".model-content").addClass("active");
+        $(".tab-content, .bottom-content").addClass("blur-content");
+
         console.log("initAnalysisBoard: sending request to /api/bot");
 
         const res = await fetch("/api/bot", {
@@ -65,11 +91,23 @@ window.initAnalysisBoard = async function (gameData) {
         });
 
         if (!res.ok) {
+          if (res.status === 502 || res.status === 503) {
+            displayMessage("wake");
+          } else {
+            displayMessage("fail");
+          }
           console.error("initAnalysisBoard: /api/bot returned non-ok", {
             status: res.status
           });
           return;
+        } else {
+          displayMessage("normal");
         }
+
+        $(".analysis-overlay").removeClass("active");
+        $(".analysis-content").addClass("active");
+        $(".model-content").removeClass("active");
+        $(".tab-content, .bottom-content").removeClass("blur-content");
 
         const data = await res.json();
         if (!data || !data.move) {

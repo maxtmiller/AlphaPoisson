@@ -1320,15 +1320,33 @@
   width: 80%;
   max-width: 350px;
   z-index: 21;
+  display: none;
 }
 
-.analysis-board-container .analysis-content h2 {
+.analysis-board-container .analysis-content.active {
+  display: block;
+}
+
+.analysis-board-container .model-content {
+  text-align: center;
+  color: var(--text-primary);
+  width: 80%;
+  max-width: 350px;
+  z-index: 21;
+  display: none;
+}
+
+.analysis-board-container .model-content.active {
+  display: block;
+}
+
+.analysis-board-container h2 {
   font-size: 24px;
   font-weight: 600;
   margin: 5px;
 }
 
-.analysis-board-container .analysis-content p {
+.analysis-board-container p {
   font-size: 16px;
   margin-bottom: 20px;
   color: var(--text-secondary);

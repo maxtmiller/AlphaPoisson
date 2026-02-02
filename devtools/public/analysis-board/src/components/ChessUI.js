@@ -126,6 +126,15 @@ export class ChessUI {
     }
   }
 
+  checkGameOver() {
+    if (!this.moveTree) return false;
+    const currentNode = this.moveTree.currentNode;
+    if (!currentNode || !currentNode.fen) return false;
+
+    const chess = new Chess(currentNode.fen);
+    return chess.isGameOver();
+  }
+
   onHumanMove(callback) {
     if (typeof callback !== "function") {
       console.warn("onHumanMove expects a function callback.");
