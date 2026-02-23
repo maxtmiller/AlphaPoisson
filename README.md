@@ -24,9 +24,9 @@
 
 ---
 
-## Technical Overview
+## Tech Stack
 
-* **Frontend:** HTML, CSS, JavaScript
+* **Frontend:** Typescript, React, Next.js
 * **Backend:** Python (self-play engines, evaluation heuristics)
 * **Search Techniques:** Minimax, alpha-beta pruning, iterative deepening
 * **Training:** Self-play loops, handcrafted evaluation functions, iterative tuning
