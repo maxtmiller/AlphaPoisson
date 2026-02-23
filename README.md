@@ -4,7 +4,7 @@ AlphaPoisson is a collection of self-trained AI chess engines developed during *
 
 ---
 
-## 🚀 Overview
+## Overview
 
 AlphaPoisson features multiple chess engines trained under different configurations, each with its own style and strengths. You can play against them directly on our website or explore the source code to see how each engine was built.
 
@@ -18,7 +18,7 @@ Key ideas behind the project include:
 
 ---
 
-## ♟️ Features
+## Features
 
 - Multiple AI chess engines with different difficulty levels  
 - Deterministic and stochastic evaluation variants  
@@ -28,7 +28,7 @@ Key ideas behind the project include:
 
 ---
 
-## 📍 Play Locally Using Docker
+## Play Locally with Docker
 
 Ensure you have Docker installed and running. Docker Desktop includes Docker Compose.
 
@@ -52,7 +52,7 @@ You do **not** need Python, Node.js, pip, or npm installed locally.
    
 ---
 
-## 🌐 Play Online
+## Play Online
 
 Play against the AlphaPoisson engines in your browser:
 
