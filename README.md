@@ -8,7 +8,7 @@
 
 ---
 
-## Demo
+## Preview
 
 <img width="1710" height="986" alt="alphapoisson_cover" src="https://github.com/user-attachments/assets/2148fb4c-a6bf-4e86-a8d9-47d4934d829a" />
 
