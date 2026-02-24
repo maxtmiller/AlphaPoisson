@@ -39,7 +39,7 @@
 No Python, Node.js, pip, or npm required. Docker Desktop is sufficient.
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/maxtmiller/AlphaPoisson.git
 cd AlphaPoisson
 docker compose build
 docker compose up
