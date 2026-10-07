@@ -1,15 +1,24 @@
-import torch
+from functools import lru_cache
 from .utils import chess_manager, GameContext
 from chess import Move
 import chess
 import chess.engine
+import numpy as np
+import onnxruntime as ort
 import random
-from .model import ChessResNet, ChessResNetPa, board_to_matrix
+from .model import board_to_matrix
 import pickle
 
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 TEMPERATURE = 1
+move_to_index = pickle.load(open("./src/move_to_int.pkl", "rb"))
+
+
+@lru_cache(maxsize=None)
+def load_model(model_name):
+    """INT8 ONNX Runtime session built by quantize.py; cached so each model is loaded once per process."""
+    path = "./models/int8/" + model_name.replace(".pth", ".onnx")
+    return ort.InferenceSession(path, providers=["CPUExecutionProvider"])
 
 
 @chess_manager.entrypoint
@@ -28,22 +37,10 @@ def test_func(ctx: GameContext):
             ctx.logProbabilities({})
             raise ValueError("No legal moves available (probably lost).")
         
-        base_name = model_name.split('.')[0]
-        parts = base_name.split('_')
-        layers = int(parts[-1])
+        model = load_model(model_name)
 
         if 'pv' in model_name:
 
-            model = ChessResNetPa(num_res_blocks=layers, num_moves=1917)
-            state_dict = torch.load(
-                "./models/"+model_name,
-                map_location=torch.device('cpu')
-            )
-            model.load_state_dict(state_dict)
-            model.to(DEVICE)
-            model.eval()
-            move_to_index = pickle.load(open("./src/move_to_int.pkl", "rb"))
-        
             # 2. Run your new search function to get the *single* best move
             best_move = shallow_search(board, model)
 
@@ -60,23 +57,13 @@ def test_func(ctx: GameContext):
         
         elif 'op' in model_name:
 
-            model = ChessResNet(num_res_blocks=layers, num_moves=1917)
-            state_dict = torch.load(
-                "./models/"+model_name,
-                map_location=torch.device('cpu')
-            )
-            model.load_state_dict(state_dict)
-            model.eval()
-            move_to_index = pickle.load(open("./src/move_to_int.pkl", "rb"))
-
             # 2. Convert board to tensor
-            input_matrix = board_to_matrix(board)
-            input_tensor = torch.tensor(input_matrix, dtype=torch.float32).unsqueeze(0).to(DEVICE)
+            input_matrix = board_to_matrix(board)[np.newaxis].astype(np.float32)
 
             # 3. Run model
-            with torch.no_grad():
-                logits = model(input_tensor)
-                all_move_probs = torch.softmax(logits, dim=1).cpu().numpy().flatten()
+            logits = model.run(None, {"x": input_matrix})[0].flatten()
+            exp = np.exp(logits - logits.max())
+            all_move_probs = exp / exp.sum()
 
             # 4. Map legal moves to probabilities
             move_weights = []
@@ -152,53 +139,22 @@ def reset_func(ctx: GameContext):
 def shallow_search(board, model):
     """
     1-ply search using the value head.
-    This is a "minimax" search at depth 1.
+    This is a "minimax" search at depth 1, scoring every child position in one batch.
     """
     legal = list(board.legal_moves)
     if not legal:
         return None
 
-    best_move = None
-    best_score = -9999  # We're always trying to maximize this
-
-    # Store whose turn it is *before* we make a move
-    is_white_to_move = (board.turn == chess.WHITE)
-
+    children = []
     for move in legal:
         board.push(move)
-        
-        # Get the score of the *resulting* board.
-        # This score is always from White's perspective.
-        white_score = evaluate_board(board, model)
-        
+        children.append(board_to_matrix(board))
         board.pop()
 
-        # This is the "negamax" logic.
-        # If we are White, we want to maximize white_score.
-        # If we are Black, we want to minimize white_score (i.e., maximize -white_score).
-        my_score = white_score if is_white_to_move else -white_score
-
-        if my_score > best_score:
-            best_score = my_score
-            best_move = move
-
-    return best_move
-
-
-
-def evaluate_board(board, model):
-    """
-    Returns the model's value prediction for WHITE in [-1, 1].
-    (Assuming your model is trained to always predict White's score)
-    """
-    mat = board_to_matrix(board)
-    inp = torch.tensor(mat, dtype=torch.float32).unsqueeze(0).to(DEVICE)
-
-    with torch.no_grad():
-        # Your model returns TWO things. We only need the second one.
-        policy_logits, value = model(inp) 
-    
-    return float(value.item())
+    # Value is always from White's perspective, so Black maximizes its negation.
+    white_scores = model.run(None, {"x": np.stack(children).astype(np.float32)})[1].ravel()
+    my_scores = white_scores if board.turn == chess.WHITE else -white_scores
+    return legal[int(my_scores.argmax())]
 
 
 
