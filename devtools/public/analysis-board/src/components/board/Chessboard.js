@@ -953,9 +953,9 @@ export class Chessboard {
 				animate: animate,
 				fenBefore: fenBefore
 			};
-			this._completePromotion(promotedPiece, false);
+			const promotionResult = this._completePromotion(promotedPiece, false);
 			if (classification) this.addClassification(classification, currentSquare, targetSquare);
-			return null;
+			return promotionResult;
 		}
 		
 		if (fenBefore) this.chess.load(fenBefore);
