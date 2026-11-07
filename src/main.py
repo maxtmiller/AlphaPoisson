@@ -3,7 +3,9 @@ from .utils import chess_manager, GameContext
 from chess import Move
 import chess
 import chess.engine
+import chess.polyglot
 import numpy as np
+import time
 import onnxruntime as ort
 import random
 from .model import board_to_matrix
@@ -11,6 +13,12 @@ import pickle
 
 
 TEMPERATURE = 1
+# Outside the value head's [-1, 1] range, so a mate always beats a saturated network score.
+MATE_SCORE = 2.0
+MATE_PLY_PENALTY = 0.01
+MAX_MOVE_SECONDS = 1.0
+MAX_DEPTH = 10
+QUIESCENCE_DEPTH = 6
 move_to_index = pickle.load(open("./src/move_to_int.pkl", "rb"))
 
 
@@ -41,8 +49,8 @@ def test_func(ctx: GameContext):
 
         if 'pv' in model_name:
 
-            # 2. Run your new search function to get the *single* best move
-            best_move = shallow_search(board, model)
+            # 2. Search with the value and policy heads, leaving time for the rest of the game
+            best_move = search(board, model, min(MAX_MOVE_SECONDS, ctx.timeLeft / 1000 / 30))
 
             # Failsafe
             if best_move is None:
@@ -136,24 +144,114 @@ def reset_func(ctx: GameContext):
 
 
 
-def shallow_search(board, model):
-    """
-    1-ply search using the value head.
-    This is a "minimax" search at depth 1, scoring every child position in one batch.
-    """
-    legal = list(board.legal_moves)
-    if not legal:
-        return None
+class SearchTimeout(Exception):
+    pass
 
-    children = []
-    for move in legal:
-        board.push(move)
-        children.append(board_to_matrix(board))
-        board.pop()
 
-    # Value is from the side to move's perspective, and in every child that's the opponent.
-    opponent_scores = model.run(None, {"x": np.stack(children).astype(np.float32)})[1].ravel()
-    return legal[int((-opponent_scores).argmax())]
+class AlphaBeta:
+    """Negamax alpha-beta over the value head (side to move's perspective), ordered by the policy head."""
+
+    def __init__(self, model, deadline):
+        self.model = model
+        self.deadline = deadline
+        self.can_stop = False
+        self.cache = {}
+
+    def evaluate(self, board):
+        key = chess.polyglot.zobrist_hash(board)
+        if key not in self.cache:
+            policy, value = self.model.run(None, {"x": board_to_matrix(board)[np.newaxis].astype(np.float32)})
+            self.cache[key] = (float(value.ravel()[0]), policy[0])
+        return self.cache[key]
+
+    def check_time(self):
+        if self.can_stop and time.perf_counter() > self.deadline:
+            raise SearchTimeout
+
+    def ordered(self, board, policy):
+        return sorted(board.legal_moves, reverse=True,
+                      key=lambda m: policy[move_to_index[m.uci()]] if m.uci() in move_to_index else -np.inf)
+
+    def negamax(self, board, depth, alpha, beta, ply):
+        self.check_time()
+        score = terminal_score(board, ply)
+        if score is not None:
+            return score
+        if depth == 0:
+            return self.quiescence(board, alpha, beta, ply, QUIESCENCE_DEPTH)
+        best = -np.inf
+        for move in self.ordered(board, self.evaluate(board)[1]):
+            board.push(move)
+            score = -self.negamax(board, depth - 1, -beta, -alpha, ply + 1)
+            board.pop()
+            best = max(best, score)
+            alpha = max(alpha, score)
+            if alpha >= beta:
+                break
+        return best
+
+    def quiescence(self, board, alpha, beta, ply, depth):
+        """Keep searching captures so a leaf is never scored in the middle of an exchange."""
+        self.check_time()
+        score = terminal_score(board, ply)
+        if score is not None:
+            return score
+        best = self.evaluate(board)[0]
+        if best >= beta or depth == 0:
+            return best
+        alpha = max(alpha, best)
+        for move in sorted(board.generate_legal_captures(), key=lambda m: capture_order(board, m), reverse=True):
+            board.push(move)
+            score = -self.quiescence(board, -beta, -alpha, ply + 1, depth - 1)
+            board.pop()
+            best = max(best, score)
+            alpha = max(alpha, score)
+            if alpha >= beta:
+                break
+        return best
+
+
+def search(board, model, seconds):
+    """Iterative deepening: return the best move from the deepest search finished before the deadline."""
+    engine = AlphaBeta(model, time.perf_counter() + seconds)
+    root = board.copy()
+    moves = engine.ordered(root, engine.evaluate(root)[1])
+    best_move, depth = moves[0], 0
+    try:
+        while depth < MAX_DEPTH:
+            depth += 1
+            # Depth 1 always finishes, so there is always a searched move to return.
+            engine.can_stop = depth > 1
+            alpha, iteration_best = -np.inf, moves[0]
+            for move in moves:
+                root.push(move)
+                score = -engine.negamax(root, depth - 1, -np.inf, -alpha, 1)
+                root.pop()
+                if score > alpha:
+                    alpha, iteration_best = score, move
+            best_move = iteration_best
+            moves.remove(best_move)
+            moves.insert(0, best_move)
+    except SearchTimeout:
+        depth -= 1
+    print(f"Search depth {depth}, {len(engine.cache)} positions evaluated")
+    return best_move
+
+
+def capture_order(board, move):
+    """Most valuable victim first, then least valuable attacker."""
+    victim = board.piece_at(move.to_square)
+    victim_type = victim.piece_type if victim else chess.PAWN  # en passant
+    return victim_type * 10 - board.piece_at(move.from_square).piece_type
+
+
+def terminal_score(board, ply):
+    """Exact score for the side to move if the game is over, otherwise None. Nearer mates score higher."""
+    if board.is_checkmate():
+        return -MATE_SCORE + MATE_PLY_PENALTY * ply
+    if board.is_stalemate() or board.is_insufficient_material() or board.is_repetition(3) or board.is_fifty_moves():
+        return 0.0
+    return None
 
 
 
