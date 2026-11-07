@@ -19,7 +19,12 @@ MATE_PLY_PENALTY = 0.01
 MAX_MOVE_SECONDS = 1.0
 MAX_DEPTH = 10
 QUIESCENCE_DEPTH = 6
-move_to_index = pickle.load(open("./src/move_to_int.pkl", "rb"))
+MATERIAL_WEIGHT = 0.5
+MATERIAL_SCALE = 5.0
+POLICY_PRIOR = 0.06
+PIECE_VALUES = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9, chess.KING: 0}
+# Policy output index of each move, per model file: each model family was trained with its own order.
+move_maps = pickle.load(open("./src/move_maps.pkl", "rb"))
 
 
 @lru_cache(maxsize=None)
@@ -46,11 +51,12 @@ def test_func(ctx: GameContext):
             raise ValueError("No legal moves available (probably lost).")
         
         model = load_model(model_name)
+        move_to_index = move_maps[model_name]
 
         if 'pv' in model_name:
 
             # 2. Search with the value and policy heads, leaving time for the rest of the game
-            best_move = search(board, model, min(MAX_MOVE_SECONDS, ctx.timeLeft / 1000 / 30))
+            best_move = search(board, model, move_to_index, min(MAX_MOVE_SECONDS, ctx.timeLeft / 1000 / 30))
 
             # Failsafe
             if best_move is None:
@@ -151,8 +157,9 @@ class SearchTimeout(Exception):
 class AlphaBeta:
     """Negamax alpha-beta over the value head (side to move's perspective), ordered by the policy head."""
 
-    def __init__(self, model, deadline):
+    def __init__(self, model, move_to_index, deadline):
         self.model = model
+        self.move_to_index = move_to_index
         self.deadline = deadline
         self.can_stop = False
         self.cache = {}
@@ -161,7 +168,9 @@ class AlphaBeta:
         key = chess.polyglot.zobrist_hash(board)
         if key not in self.cache:
             policy, value = self.model.run(None, {"x": board_to_matrix(board)[np.newaxis].astype(np.float32)})
-            self.cache[key] = (float(value.ravel()[0]), policy[0])
+            # The value head barely tracks material (a whole knight moves it ~0.2), so blend in a material count.
+            value = (1 - MATERIAL_WEIGHT) * float(value.ravel()[0]) + MATERIAL_WEIGHT * np.tanh(material(board) / MATERIAL_SCALE)
+            self.cache[key] = (value, policy[0])
         return self.cache[key]
 
     def check_time(self):
@@ -170,7 +179,7 @@ class AlphaBeta:
 
     def ordered(self, board, policy):
         return sorted(board.legal_moves, reverse=True,
-                      key=lambda m: policy[move_to_index[m.uci()]] if m.uci() in move_to_index else -np.inf)
+                      key=lambda m: policy[self.move_to_index[m.uci()]] if m.uci() in self.move_to_index else -np.inf)
 
     def negamax(self, board, depth, alpha, beta, ply):
         self.check_time()
@@ -211,11 +220,16 @@ class AlphaBeta:
         return best
 
 
-def search(board, model, seconds):
+def search(board, model, move_to_index, seconds):
     """Iterative deepening: return the best move from the deepest search finished before the deadline."""
-    engine = AlphaBeta(model, time.perf_counter() + seconds)
+    engine = AlphaBeta(model, move_to_index, time.perf_counter() + seconds)
     root = board.copy()
-    moves = engine.ordered(root, engine.evaluate(root)[1])
+    policy = engine.evaluate(root)[1]
+    moves = engine.ordered(root, policy)
+    # Root bonus from the policy's log-probabilities, so the value head can't overrule sound openings.
+    logits = np.array([policy[move_to_index[m.uci()]] if m.uci() in move_to_index else -np.inf for m in moves])
+    log_probs = logits - logits.max() - np.log(np.exp(logits - logits.max()).sum())
+    bonus = {m: POLICY_PRIOR * max(lp, -10.0) for m, lp in zip(moves, log_probs)}
     best_move, depth = moves[0], 0
     try:
         while depth < MAX_DEPTH:
@@ -225,8 +239,11 @@ def search(board, model, seconds):
             alpha, iteration_best = -np.inf, moves[0]
             for move in moves:
                 root.push(move)
-                score = -engine.negamax(root, depth - 1, -np.inf, -alpha, 1)
+                score = -engine.negamax(root, depth - 1, -np.inf, -(alpha - bonus[move]), 1)
                 root.pop()
+                # Scores past the value head's [-1, 1] range are mates, which the policy must not reorder.
+                if abs(score) <= 1:
+                    score += bonus[move]
                 if score > alpha:
                     alpha, iteration_best = score, move
             best_move = iteration_best
@@ -236,6 +253,11 @@ def search(board, model, seconds):
         depth -= 1
     print(f"Search depth {depth}, {len(engine.cache)} positions evaluated")
     return best_move
+
+
+def material(board):
+    """Material balance in pawns for the side to move."""
+    return sum(PIECE_VALUES[p.piece_type] * (1 if p.color == board.turn else -1) for p in board.piece_map().values())
 
 
 def capture_order(board, move):

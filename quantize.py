@@ -23,7 +23,8 @@ EVAL_GAMES = 8
 # INT8 on the policy head's large Linear costs ~4 points of top-1 agreement for ~0.15 ms; keep it FP32.
 FP32_NODES = ['/policy_fc/Gemm']
 
-move_to_index = pickle.load(open("./src/move_to_int.pkl", "rb"))
+move_maps = pickle.load(open("./src/move_maps.pkl", "rb"))
+POLICY_MODEL = "chess_resnet_op_elite_50.pth"
 
 
 def build_model(model_name):
@@ -37,6 +38,7 @@ def build_model(model_name):
 def self_play_positions(policy_model, games, seed):
     """Boards from games where each side samples a legal move from the policy (20% uniform random for variety)."""
     rng = random.Random(seed)
+    move_to_index = move_maps[POLICY_MODEL]
     boards = []
     for _ in range(games):
         board = chess.Board()
@@ -87,7 +89,7 @@ def export_int8(model_name, calib, out_path):
                         activation_type=QuantType.QUInt8, weight_type=QuantType.QInt8, nodes_to_exclude=FP32_NODES)
 
 
-def legal_mask(boards):
+def legal_mask(boards, move_to_index):
     mask = np.full((len(boards), 1917), -np.inf, dtype=np.float32)
     for i, board in enumerate(boards):
         for move in board.legal_moves:
@@ -104,8 +106,9 @@ def report(model_name, int8_path, eval_boards):
         out32 = fp32(torch.from_numpy(x))
     out8 = sess.run(None, {"x": x})
     pv = 'pv' in model_name
-    p32 = (out32[0] if pv else out32).numpy() + legal_mask(eval_boards)
-    p8 = out8[0] + legal_mask(eval_boards)
+    mask = legal_mask(eval_boards, move_maps[model_name])
+    p32 = (out32[0] if pv else out32).numpy() + mask
+    p8 = out8[0] + mask
     top1 = (p32.argmax(1) == p8.argmax(1)).mean()
     top3 = np.mean([len(set(np.argsort(-a)[:3]) & set(np.argsort(-b)[:3])) / 3 for a, b in zip(p32, p8)])
     msg = f"legal-move top-1 agreement {top1:.1%}, top-3 overlap {top3:.1%}"
@@ -124,7 +127,7 @@ def report(model_name, int8_path, eval_boards):
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
-    policy_model = build_model("chess_resnet_op_elite_50.pth")
+    policy_model = build_model(POLICY_MODEL)
     calib_boards = self_play_positions(policy_model, CALIB_GAMES, seed=0)
     eval_boards = self_play_positions(policy_model, EVAL_GAMES, seed=1)
     print(f"{len(calib_boards)} calibration positions, {len(eval_boards)} eval positions")
