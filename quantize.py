@@ -117,8 +117,7 @@ def report(model_name, int8_path, eval_boards):
             with torch.no_grad():
                 v32 = fp32(torch.from_numpy(kids))[1].numpy().ravel()
             v8 = sess.run(None, {"x": kids})[1].ravel()
-            sign = 1 if board.turn == chess.WHITE else -1
-            same += (sign * v32).argmax() == (sign * v8).argmax()
+            same += (-v32).argmax() == (-v8).argmax()
         msg += f", shallow-search move agreement {same / len(eval_boards):.1%}"
     print(f"  {model_name}: {msg}")
 
