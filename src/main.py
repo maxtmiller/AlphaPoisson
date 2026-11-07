@@ -151,10 +151,9 @@ def shallow_search(board, model):
         children.append(board_to_matrix(board))
         board.pop()
 
-    # Value is always from White's perspective, so Black maximizes its negation.
-    white_scores = model.run(None, {"x": np.stack(children).astype(np.float32)})[1].ravel()
-    my_scores = white_scores if board.turn == chess.WHITE else -white_scores
-    return legal[int(my_scores.argmax())]
+    # Value is from the side to move's perspective, and in every child that's the opponent.
+    opponent_scores = model.run(None, {"x": np.stack(children).astype(np.float32)})[1].ravel()
+    return legal[int((-opponent_scores).argmax())]
 
 
 
