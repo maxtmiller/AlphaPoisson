@@ -47,6 +47,24 @@ docker compose up
 
 Open your browser at: `http://localhost:3000`
 
+### Without Docker
+
+```bash
+pip install -r requirements.txt && python serve.py   # backend on :5058
+cd devtools && npm install && BACKEND_URL=http://localhost:5058 npm run dev
+```
+
+Training and quantization (`quantize.py`, `benchmark.py`) also need PyTorch: `pip install -r requirements-train.txt`.
+
+---
+
+## Deployment
+
+Both halves deploy to Vercel as two projects from this repo:
+
+* **Backend:** root directory `.`, framework preset "Other". `api/index.py` serves the FastAPI app as a Python function with the INT8 models; `.vercelignore` keeps the frontend and `.pth` checkpoints out of the bundle.
+* **Frontend:** root directory `devtools`, with `BACKEND_URL` set to the backend project's URL.
+
 ---
 
 ## Play Online

@@ -8,7 +8,8 @@ import numpy as np
 import time
 import onnxruntime as ort
 import random
-from .model import board_to_matrix
+from .board import board_to_matrix
+import os
 import pickle
 
 
@@ -24,13 +25,14 @@ MATERIAL_SCALE = 5.0
 POLICY_PRIOR = 0.06
 PIECE_VALUES = {chess.PAWN: 1, chess.KNIGHT: 3, chess.BISHOP: 3, chess.ROOK: 5, chess.QUEEN: 9, chess.KING: 0}
 # Policy output index of each move, per model file: each model family was trained with its own order.
-move_maps = pickle.load(open("./src/move_maps.pkl", "rb"))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+move_maps = pickle.load(open(os.path.join(ROOT, "src", "move_maps.pkl"), "rb"))
 
 
 @lru_cache(maxsize=None)
 def load_model(model_name):
     """INT8 ONNX Runtime session built by quantize.py; cached so each model is loaded once per process."""
-    path = "./models/int8/" + model_name.replace(".pth", ".onnx")
+    path = os.path.join(ROOT, "models", "int8", model_name.replace(".pth", ".onnx"))
     return ort.InferenceSession(path, providers=["CPUExecutionProvider"])
 
 
