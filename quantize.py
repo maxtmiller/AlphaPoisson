@@ -14,7 +14,8 @@ import onnxruntime as ort
 import torch
 from onnxruntime.quantization import CalibrationDataReader, QuantFormat, QuantType, quantize_static
 
-from src.model import ChessResNet, ChessResNetPa, board_to_matrix
+from src.board import board_to_matrix
+from src.model import ChessResNet, ChessResNetPa
 
 MODELS_DIR = "./models"
 OUT_DIR = "./models/int8"
