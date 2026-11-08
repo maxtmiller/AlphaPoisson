@@ -69,11 +69,7 @@ Both halves deploy to Vercel as two projects from this repo:
 
 ## Play Online
 
-* **Frontend:** [https://alpha-poisson.vercel.app/](https://alpha-poisson.vercel.app/)
-* **Backend:** [https://alphapoisson.onrender.com/](https://alphapoisson.onrender.com/)
-
-> [!NOTE]
-> Hosted on free-tier infrastructure. If the backend is idle, visit the backend URL first and allow ~30 seconds for the instance to wake up before playing.
+Play at [https://alpha-poisson.vercel.app/](https://alpha-poisson.vercel.app/).
 
 ---
 
