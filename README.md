@@ -62,7 +62,7 @@ Training and quantization (`quantize.py`, `benchmark.py`) also need PyTorch: `pi
 
 Both halves deploy to Vercel as two projects from this repo:
 
-* **Backend:** root directory `.`, framework preset "Other". `api/index.py` serves the FastAPI app as a Python function with the INT8 models; `.vercelignore` keeps the frontend and `.pth` checkpoints out of the bundle.
+* **Backend:** root directory `.`, framework preset "Other". `api/index.py` serves the FastAPI app as a Python function with the INT8 models; `excludeFiles` in `vercel.json` keeps the frontend and `.pth` checkpoints out of the bundle (a root `.vercelignore` would also strip the frontend project).
 * **Frontend:** root directory `devtools`, with `BACKEND_URL` set to the backend project's URL.
 
 ---

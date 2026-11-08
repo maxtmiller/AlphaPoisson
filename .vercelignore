@@ -1,8 +1,0 @@
-devtools
-training
-models/*.pth
-**/__pycache__
-benchmark.py
-quantize.py
-Dockerfile.backend
-docker-compose.yml

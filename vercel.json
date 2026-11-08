@@ -1,7 +1,8 @@
 {
   "functions": {
     "api/index.py": {
-      "includeFiles": "{serve.py,src/**,models/int8/**}"
+      "includeFiles": "{serve.py,src/**,models/int8/**}",
+      "excludeFiles": "{devtools/**,training/**,models/*.pth,**/__pycache__/**,.venv/**,venv/**,.vercel/**,benchmark.py,quantize.py,Dockerfile.backend,docker-compose.yml}"
     }
   },
   "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
