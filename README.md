@@ -67,12 +67,6 @@ Both halves deploy to Vercel as two projects from this repo:
 
 ---
 
-## Play Online
-
-Play at [https://alpha-poisson.vercel.app/](https://alpha-poisson.vercel.app/).
-
----
-
 ## Next Steps
 
 * Experiment with new evaluation functions and heuristics
